@@ -98,7 +98,7 @@ func analysis(pathData string) error {
 
 	}
 
-	fmt.Printf("analysis: Loaded record number %d into the B-tree\n", recordNumber)
+	fmt.Printf("analysis: Loaded %d records into the B-tree\n", recordNumber)
 
 	// Use the loaded tree to retrieve data records.
 	for ix := 0; ix < maxDisplaySamples; ix++ {
