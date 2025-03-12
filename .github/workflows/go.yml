@@ -2,6 +2,8 @@ name: Go Build and Run
 
 on:
   push:
+    paths-ignore:
+      - '*.md'
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
