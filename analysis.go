@@ -133,10 +133,12 @@ func reportData(recordNumber int32, loadedTree *btree.BTree) error {
 		fmt.Printf("reportData: begin frame: Record %d FQN = %s\n", indexRecord.Key, fqn)
 	case rtypeI64Change:
 		ri64chg := indexRecord.Payload.(RecordI64Change)
-		fmt.Printf("reportData: int64 change: Record %d, old = %d, new = %d\n", indexRecord.Key, ri64chg.ValueOld, ri64chg.ValueNew)
+		fmt.Printf("reportData: int64 change: Record %d, ftype=%d, old = %d, new = %d\n",
+			indexRecord.Key, ri64chg.FieldType, ri64chg.ValueOld, ri64chg.ValueNew)
 	case rtypeF64Change:
 		rf64chg := indexRecord.Payload.(RecordF64Change)
-		fmt.Printf("reportData: float64 change: Record %d, old = %f, new = %f\n", indexRecord.Key, rf64chg.ValueOld, rf64chg.ValueNew)
+		fmt.Printf("reportData: float64 change: Record %d, ftype=%d, old = %f, new = %f\n",
+			indexRecord.Key, rf64chg.FieldType, rf64chg.ValueOld, rf64chg.ValueNew)
 	case rtypeEndFrame:
 		refr := indexRecord.Payload.(RecordEndFrame)
 		fqn := string(refr.FQNbytes[:refr.FQNsize])

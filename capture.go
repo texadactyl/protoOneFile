@@ -49,6 +49,7 @@ func capture(pathData string) error {
 		recordCounter++
 		recordPrefix.Rtype = [len(recordPrefix.Rtype)]byte(stringToFixedBytes(rtypeI64Change, len(recordPrefix.Rtype)))
 		recordPrefix.Counter = recordCounter
+		ri64chg.FieldType = ftypeLocal
 		ri64chg.ValueNew = int64(recordCounter)
 		err := writeRecordToFile(dataFile, recordPrefix, ri64chg)
 		if err != nil {
@@ -59,6 +60,7 @@ func capture(pathData string) error {
 		recordCounter++
 		recordPrefix.Rtype = [len(recordPrefix.Rtype)]byte(stringToFixedBytes(rtypeF64Change, len(recordPrefix.Rtype)))
 		recordPrefix.Counter = recordCounter
+		rf64chg.FieldType = ftypeLocal
 		rf64chg.ValueNew = float64(recordCounter)
 		err = writeRecordToFile(dataFile, recordPrefix, rf64chg)
 		if err != nil {
