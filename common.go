@@ -5,16 +5,22 @@ import (
 	"os"
 )
 
+/***
+	Record anatomy: [RecordPrefix][PayloadX]
+	where:
+
+	RecordPrefix - common to all record types
+	PayloadX - specific to record type X
+ ***/
+
 // Data and its associated index file.
 const pathData = "./saucisse.data"
 
-// Some maximums.
-const maxValueChanges = 1000 //
-const maxDisplaySamples = 20
-
-// Record anatomy:
-// * Prefix - common across record types
-// * Payload - specific to record type
+// Maximum array lengths.
+const maxFqnLength = 100
+const maxNameLength = 100
+const maxStaticsLength = 65535
+const maxPushPopArg = 100
 
 // Record types.
 const rtypeBeginFrame = "FRMBEG"
@@ -31,9 +37,9 @@ const rtypeGfuncReturn = "GRETURN"
 // Field types.
 const ftypeLocal = 1    // Non-static variable within a function
 const ftypeInstance = 2 // Non-static variable, global to the instance of an object
-const ftypeStatic = 3   // Static variables
+const ftypeStatic = 3   // Static variable, global to all functions of every object
 
-// Data record definitions.
+//  -------------------------- Begin data record definitions
 
 type RecordPrefix struct {
 	Rtype       [8]byte // rtype*
@@ -41,55 +47,63 @@ type RecordPrefix struct {
 	PayloadSize int32
 }
 
-type RecordBeginFrame struct {
+type PayloadBeginFrame struct {
 	FQNsize  int16
-	FQNbytes [100]byte
+	FQNbytes [maxFqnLength]byte
 }
 
-type RecordEndFrame struct {
+type PayloadEndFrame struct {
 	FQNsize  int16
-	FQNbytes [100]byte
+	FQNbytes [maxFqnLength]byte
 }
 
-type RecordI64Change struct {
+type PayloadI64Change struct {
 	FieldType int16 // ftype*
 	ValueOld  int64
 	ValueNew  int64
+	Index     int64
+	NameSize  int16
+	NameBytes [maxNameLength]byte
 }
 
-type RecordF64Change struct {
+type PayloadF64Change struct {
 	FieldType int16 // ftype*
 	ValueOld  float64
 	ValueNew  float64
+	Index     int64
+	NameSize  int16
+	NameBytes [maxNameLength]byte
 }
 
-type RecordStatics struct {
+type PayloadStatics struct {
 	TblSize  int32
-	TblBytes [0]byte // Serialized statics table
+	TblBytes [maxStaticsLength]byte // Serialized statics table
 }
 
-type RecordOpCode struct {
+type PayloadOpCode struct {
 	PC     int32
 	OpCode int32
 }
 
-type RecordPush struct {
-	PushSize  int32   // size of PushBytes
-	PushBytes [0]byte // String-ified push operand, converted to [size]byte
+type PayloadPush struct {
+	PushSize  int16               // size of PushBytes
+	PushBytes [maxPushPopArg]byte // String-ified push operand, converted to [size]byte
 }
 
-type RecordPop struct {
-	PopSize  int32  // size of PopBytes
-	PopBytes []byte // String-ified push operand, converted to [size]byte
+type PayloadPop struct {
+	PopSize  int16               // size of PopBytes
+	PopBytes [maxPushPopArg]byte // String-ified push operand, converted to [size]byte
 }
 
-type RecordGfuncCall struct {
+type PayloadGfuncCall struct {
 	// TODO
 }
 
-type RecordGfuncReturn struct {
+type PayloadGfuncReturn struct {
 	// TODO
 }
+
+// -------------------------- End of data record definitions
 
 // fileSize gets the current size of the file using its open file handle.
 func fileSize(file *os.File) (int64, error) {

@@ -11,15 +11,19 @@ import (
 	"strings"
 )
 
+// Maximums for controlling analysis behaviour.
+const maxValueChanges = 1000 //
+const maxDisplaySamples = 20
+
 func analysis(pathData string) error {
 
 	tracing := false
 	var recordNumber int32
 	var recordPrefix RecordPrefix
-	var rbfr RecordBeginFrame
-	var ri64chg RecordI64Change
-	var rf64chg RecordF64Change
-	var refr RecordEndFrame
+	var rbfr PayloadBeginFrame
+	var ri64chg PayloadI64Change
+	var rf64chg PayloadF64Change
+	var refr PayloadEndFrame
 
 	// Open the data file.
 	dataFile, err := os.Open(pathData)
@@ -116,6 +120,9 @@ func analysis(pathData string) error {
 
 // Given a key, report the associated data record.
 func reportData(recordNumber int32, loadedTree *btree.BTree) error {
+	var fname string
+
+	// Get B-tree leaf and set indexRecord to its components.
 	item := loadedTree.Get(&IndexRecord{Key: recordNumber})
 	if item == nil {
 		errMsg := fmt.Sprintf("reportData *** ERROR: Cannot find index recordNumber: %d", recordNumber)
@@ -124,23 +131,35 @@ func reportData(recordNumber int32, loadedTree *btree.BTree) error {
 	}
 	indexRecord := item.(*IndexRecord)
 
-	// Show data.
+	// Get record type.
 	rtype := strings.TrimSpace(string(indexRecord.Prefix.Rtype[:]))
+
+	// Show data.
 	switch rtype {
 	case rtypeBeginFrame:
-		rbfr := indexRecord.Payload.(RecordBeginFrame)
+		rbfr := indexRecord.Payload.(PayloadBeginFrame)
 		fqn := string(rbfr.FQNbytes[:rbfr.FQNsize])
 		fmt.Printf("reportData: begin frame: Record %d FQN = %s\n", indexRecord.Key, fqn)
 	case rtypeI64Change:
-		ri64chg := indexRecord.Payload.(RecordI64Change)
-		fmt.Printf("reportData: int64 change: Record %d, ftype=%d, old = %d, new = %d\n",
-			indexRecord.Key, ri64chg.FieldType, ri64chg.ValueOld, ri64chg.ValueNew)
+		ri64chg := indexRecord.Payload.(PayloadI64Change)
+		if ri64chg.NameSize == 0 {
+			fname = ""
+		} else {
+			fname = strings.TrimSpace(string(ri64chg.NameBytes[:ri64chg.NameSize]))
+		}
+		fmt.Printf("reportData: int64 change: Record %d, fname=\"%s\", ftype=%d, old = %d, new = %d\n",
+			indexRecord.Key, fname, ri64chg.FieldType, ri64chg.ValueOld, ri64chg.ValueNew)
 	case rtypeF64Change:
-		rf64chg := indexRecord.Payload.(RecordF64Change)
-		fmt.Printf("reportData: float64 change: Record %d, ftype=%d, old = %f, new = %f\n",
-			indexRecord.Key, rf64chg.FieldType, rf64chg.ValueOld, rf64chg.ValueNew)
+		rf64chg := indexRecord.Payload.(PayloadF64Change)
+		if rf64chg.NameSize == 0 {
+			fname = ""
+		} else {
+			fname = strings.TrimSpace(string(rf64chg.NameBytes[:rf64chg.NameSize]))
+		}
+		fmt.Printf("reportData: float64 change: Record %d, fname=\"%s\", ftype=%d, old = %f, new = %f\n",
+			indexRecord.Key, fname, rf64chg.FieldType, rf64chg.ValueOld, rf64chg.ValueNew)
 	case rtypeEndFrame:
-		refr := indexRecord.Payload.(RecordEndFrame)
+		refr := indexRecord.Payload.(PayloadEndFrame)
 		fqn := string(refr.FQNbytes[:refr.FQNsize])
 		fmt.Printf("reportData: end frame: Record %d FQN = %s\n", indexRecord.Key, fqn)
 	default:

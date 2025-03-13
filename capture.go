@@ -20,7 +20,7 @@ func capture(pathData string) error {
 	defer dataFile.Close()
 
 	// Begin frame.
-	var rbfr RecordBeginFrame
+	var rbfr PayloadBeginFrame
 	fqn := "java/lang/String.getBytes()[B"
 	recordPrefix.Rtype = [len(recordPrefix.Rtype)]byte(stringToFixedBytes(rtypeBeginFrame, len(recordPrefix.Rtype)))
 	recordPrefix.Counter = recordCounter
@@ -33,15 +33,18 @@ func capture(pathData string) error {
 		return err
 	}
 
-	var ri64chg RecordI64Change
+	var ri64chg PayloadI64Change
 	recordPrefix.Counter = recordCounter
 	recordPrefix.PayloadSize = int32(unsafe.Sizeof(ri64chg))
 	ri64chg.ValueOld = int64(0)
 
-	var rf64chg RecordF64Change
+	var rf64chg PayloadF64Change
 	recordPrefix.Counter = recordCounter
 	recordPrefix.PayloadSize = int32(unsafe.Sizeof(rf64chg))
 	rf64chg.ValueOld = float64(0)
+
+	iota := "Iota"
+	gamma := "Gamma"
 
 	for recordCounter = 0; recordCounter < maxValueChanges; {
 
@@ -51,7 +54,10 @@ func capture(pathData string) error {
 		recordPrefix.Counter = recordCounter
 		ri64chg.FieldType = ftypeLocal
 		ri64chg.ValueNew = int64(recordCounter)
-		err := writeRecordToFile(dataFile, recordPrefix, ri64chg)
+		ri64chg.Index = int64(recordCounter)
+		ri64chg.NameSize = int16(len(iota))
+		ri64chg.NameBytes = [len(ri64chg.NameBytes)]byte(stringToFixedBytes(iota, len(ri64chg.NameBytes)))
+		err = writeRecordToFile(dataFile, recordPrefix, ri64chg)
 		if err != nil {
 			return err
 		}
@@ -62,6 +68,9 @@ func capture(pathData string) error {
 		recordPrefix.Counter = recordCounter
 		rf64chg.FieldType = ftypeLocal
 		rf64chg.ValueNew = float64(recordCounter)
+		rf64chg.Index = int64(recordCounter)
+		rf64chg.NameSize = int16(len(gamma))
+		rf64chg.NameBytes = [len(rf64chg.NameBytes)]byte(stringToFixedBytes(gamma, len(rf64chg.NameBytes)))
 		err = writeRecordToFile(dataFile, recordPrefix, rf64chg)
 		if err != nil {
 			return err
@@ -74,7 +83,7 @@ func capture(pathData string) error {
 
 	// Write end frame record.
 	recordCounter++
-	var refr RecordEndFrame
+	var refr PayloadEndFrame
 	recordPrefix.Rtype = [len(recordPrefix.Rtype)]byte(stringToFixedBytes(rtypeEndFrame, len(recordPrefix.Rtype)))
 	recordPrefix.Counter = recordCounter
 	refr.FQNsize = rbfr.FQNsize
@@ -85,7 +94,7 @@ func capture(pathData string) error {
 		return err
 	}
 
-	fmt.Printf("capture: Finished writing record number %d\n", recordCounter)
+	fmt.Printf("capture: Stored %d records\n", recordCounter+1)
 
 	return nil
 }
