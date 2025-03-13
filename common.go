@@ -1,10 +1,5 @@
 package main
 
-import (
-	"fmt"
-	"os"
-)
-
 /***
 	Record anatomy: [RecordPrefix][PayloadX]
 	where:
@@ -104,18 +99,3 @@ type PayloadGfuncReturn struct {
 }
 
 // -------------------------- End of data record definitions
-
-// fileSize gets the current size of the file using its open file handle.
-func fileSize(file *os.File) (int64, error) {
-	info, err := file.Stat()
-	if err != nil {
-		return -1, err
-	}
-	return info.Size(), nil
-}
-
-// Convert a string to a fixed-length byte array with space filled on the right.
-func stringToFixedBytes(s string, size int) []byte {
-	padded := fmt.Sprintf("%-*s", size, s) // Left-align and pad with spaces.
-	return []byte(padded)[:size]           // Ensure it is exactly 'size' bytes.
-}

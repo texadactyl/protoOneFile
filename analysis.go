@@ -15,8 +15,19 @@ import (
 const maxValueChanges = 1000 //
 const maxDisplaySamples = 20
 
+type BtreeLeaf struct {
+	Key     int32 // Record number
+	Prefix  RecordPrefix
+	Payload any
+}
+
+// Implement the `Less` function for btree.Item interface.
+func (this BtreeLeaf) Less(that btree.Item) bool {
+	return this.Key < that.(*BtreeLeaf).Key
+}
 func analysis(pathData string) error {
 
+	eofFlag := false
 	tracing := false
 	var recordNumber int32
 	var recordPrefix RecordPrefix
@@ -33,18 +44,19 @@ func analysis(pathData string) error {
 	}
 	defer dataFile.Close()
 
-	// Initialise a B-tree.
+	// Initialise the B-tree.
 	bTree := btree.New(2)
 
-	eofFlag := false
+	// Read every record from the data file.
 	for recordNumber = 0; ; recordNumber++ {
 
-		// Read record prefix from data file.
+		// Read record prefix.
 		err = binary.Read(dataFile, binary.LittleEndian, &recordPrefix)
 		switch {
 		case err == nil:
 		case errors.Is(err, io.EOF):
-			eofFlag = true // no more records left
+			// no more records left
+			eofFlag = true
 		case errors.Is(err, io.ErrUnexpectedEOF):
 			fmt.Printf("analysis *** ERROR: binary.Read(recordPrefix) encounted an unexpected EOF, recordNumber=%d, err: %v\n",
 				recordNumber, err)
@@ -60,7 +72,9 @@ func analysis(pathData string) error {
 			break
 		}
 
-		// Got the record prefix. Now, read the payload, depending on the record type.
+		// Retrieved the record prefix.
+		// Read the payload.
+		// Finally, add both prefix and payload to the B-tree as an BtreeLeaf.
 		rtype := strings.TrimSpace(string(recordPrefix.Rtype[:]))
 		if tracing {
 			fmt.Printf("analysis tracing: Read recordNumber=%d, prefix Rtype=%s, Counter=%d, PayloadSize=%d\n",
@@ -73,28 +87,28 @@ func analysis(pathData string) error {
 				fmt.Printf("analysis *** ERROR: binary.Read(rtypeI64Change) failed, recordNumber=%d, err: %v\n", recordNumber, err)
 				return err
 			}
-			bTree.ReplaceOrInsert(&IndexRecord{Key: recordNumber, Prefix: recordPrefix, Payload: ri64chg})
+			bTree.ReplaceOrInsert(&BtreeLeaf{Key: recordNumber, Prefix: recordPrefix, Payload: ri64chg})
 		case rtypeF64Change:
 			err = binary.Read(dataFile, binary.LittleEndian, &rf64chg)
 			if err != nil {
 				fmt.Printf("analysis *** ERROR: binary.Read(rtypeF64Change) failed, recordNumber=%d, err: %v\n", recordNumber, err)
 				return err
 			}
-			bTree.ReplaceOrInsert(&IndexRecord{Key: recordNumber, Prefix: recordPrefix, Payload: rf64chg})
+			bTree.ReplaceOrInsert(&BtreeLeaf{Key: recordNumber, Prefix: recordPrefix, Payload: rf64chg})
 		case rtypeBeginFrame:
 			err = binary.Read(dataFile, binary.LittleEndian, &rbfr)
 			if err != nil {
 				fmt.Printf("analysis *** ERROR: binary.Read(rtypeBeginFrame) failed, recordNumber=%d, err: %v\n", recordNumber, err)
 				return err
 			}
-			bTree.ReplaceOrInsert(&IndexRecord{Key: recordNumber, Prefix: recordPrefix, Payload: rbfr})
+			bTree.ReplaceOrInsert(&BtreeLeaf{Key: recordNumber, Prefix: recordPrefix, Payload: rbfr})
 		case rtypeEndFrame:
 			err = binary.Read(dataFile, binary.LittleEndian, &refr)
 			if err != nil {
 				fmt.Printf("analysis *** ERROR: binary.Read(rtypeEndFrame) failed, recordNumber=%d, err: %v\n", recordNumber, err)
 				return err
 			}
-			bTree.ReplaceOrInsert(&IndexRecord{Key: recordNumber, Prefix: recordPrefix, Payload: refr})
+			bTree.ReplaceOrInsert(&BtreeLeaf{Key: recordNumber, Prefix: recordPrefix, Payload: refr})
 		default:
 			fmt.Printf("analysis *** ERROR: binary.Read ==> unknown record type: %s, recordNumber=%d\n", rtype, recordNumber)
 			return err
@@ -104,7 +118,7 @@ func analysis(pathData string) error {
 
 	fmt.Printf("analysis: Loaded %d records into the B-tree\n", recordNumber)
 
-	// Use the loaded tree to retrieve data records.
+	// Retrieve random records and report their contents.
 	for ix := 0; ix < maxDisplaySamples; ix++ {
 		err = reportData(randomPal(), bTree)
 		if err != nil {
@@ -112,6 +126,7 @@ func analysis(pathData string) error {
 		}
 	}
 
+	// Report the first record and the last record.
 	reportData(int32(0), bTree)
 	reportData(maxValueChanges+1, bTree)
 
@@ -123,13 +138,13 @@ func reportData(recordNumber int32, loadedTree *btree.BTree) error {
 	var fname string
 
 	// Get B-tree leaf and set indexRecord to its components.
-	item := loadedTree.Get(&IndexRecord{Key: recordNumber})
+	item := loadedTree.Get(&BtreeLeaf{Key: recordNumber})
 	if item == nil {
 		errMsg := fmt.Sprintf("reportData *** ERROR: Cannot find index recordNumber: %d", recordNumber)
 		println(errMsg)
 		return errors.New(errMsg)
 	}
-	indexRecord := item.(*IndexRecord)
+	indexRecord := item.(*BtreeLeaf)
 
 	// Get record type.
 	rtype := strings.TrimSpace(string(indexRecord.Prefix.Rtype[:]))
@@ -169,7 +184,7 @@ func reportData(recordNumber int32, loadedTree *btree.BTree) error {
 	return nil
 }
 
-// We don't want a random number generator range of [0, n). We actually want (0, n].
+// We don't want a random number in the range of [0, n). We actually want the range = (0, n].
 func randomPal() int32 {
 	var rn int32
 	for {
@@ -179,16 +194,4 @@ func randomPal() int32 {
 		}
 	}
 	return rn
-}
-
-// IndexRecord is the wrapper for storing data in the B-bTree
-type IndexRecord struct {
-	Key     int32 // Record number in the data file
-	Prefix  RecordPrefix
-	Payload any
-}
-
-// Implement the `Less` function for btree.Item interface.
-func (this IndexRecord) Less(that btree.Item) bool {
-	return this.Key < that.(*IndexRecord).Key
 }

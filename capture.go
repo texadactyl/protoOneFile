@@ -11,10 +11,10 @@ func capture(pathData string) error {
 	var recordCounter = int32(0)
 	var recordPrefix RecordPrefix
 
-	// Create or open the data file (where the records will be stored)
+	// Create or re-create the data file.
 	dataFile, err := os.Create(pathData)
 	if err != nil {
-		fmt.Println("capture: Error creating data file:", err)
+		fmt.Printf("capture: os.Create(%s) failed, err: %v\n", pathData, err)
 		return err
 	}
 	defer dataFile.Close()
@@ -43,8 +43,8 @@ func capture(pathData string) error {
 	recordPrefix.PayloadSize = int32(unsafe.Sizeof(rf64chg))
 	rf64chg.ValueOld = float64(0)
 
-	iota := "Iota"
-	gamma := "Gamma"
+	iota := "Iota"   // int64 field name
+	gamma := "Gamma" // float64 field name
 
 	for recordCounter = 0; recordCounter < maxValueChanges; {
 
@@ -76,7 +76,7 @@ func capture(pathData string) error {
 			return err
 		}
 
-		// Update old values.
+		// New values become the old values.
 		ri64chg.ValueOld = ri64chg.ValueNew
 		rf64chg.ValueOld = rf64chg.ValueNew
 	}
@@ -102,7 +102,7 @@ func capture(pathData string) error {
 // Write a record to the data file.
 func writeRecordToFile(dataFile *os.File, recordPrefix RecordPrefix, recordPayload any) error {
 
-	// Write record prefix to data file
+	// Write the record prefix.
 	err := binary.Write(dataFile, binary.LittleEndian, recordPrefix)
 	if err != nil {
 		fmt.Printf("writeRecordToFile *** ERROR: binary.Write(recordPrefix) failed, Rtype=%s, Counter=%d, PayloadSize=%d, err: %v\n",
@@ -110,7 +110,7 @@ func writeRecordToFile(dataFile *os.File, recordPrefix RecordPrefix, recordPaylo
 		return err
 	}
 
-	// Write record payload to data file
+	// Write the record payload.
 	err = binary.Write(dataFile, binary.LittleEndian, recordPayload)
 	if err != nil {
 		fmt.Printf("writeRecordToFile *** ERROR: binary.Write(recordPayload) failed, Rtype=%s, Counter=%d, PayloadSize=%d, err: %v\n",
@@ -120,4 +120,10 @@ func writeRecordToFile(dataFile *os.File, recordPrefix RecordPrefix, recordPaylo
 
 	// Return success to caller.
 	return nil
+}
+
+// Convert a string to a fixed-length byte array with space filled on the right.
+func stringToFixedBytes(s string, size int) []byte {
+	padded := fmt.Sprintf("%-*s", size, s) // Left-align and pad with spaces.
+	return []byte(padded)[:size]           // Ensure it is exactly 'size' bytes.
 }
