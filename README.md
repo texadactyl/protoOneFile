@@ -6,4 +6,4 @@ Create a single physical-sequential hand-off file in function `capture` then exe
 
 To-date, supporting only record types begin frame, end frame, change an int64 primitive, and change a float64 primitive.
 
-See `common.go` for the specification of each record.
+See `common.go` for the record specifications and TODOs.
